@@ -21,7 +21,7 @@ namespace Function
         /// <summary>
         /// Sets up the MongoDB connection.
         /// </summary>
-        public static void SetupConnection(this DatabaseFunctionHandler databaseFunctionHandler)
+        public static void SetupConnection(this FunctionHandler databaseFunctionHandler)
         {
             if (Database == null)
             {
@@ -49,7 +49,7 @@ namespace Function
         /// </summary>
         /// <param name="functionHandler">This instance of a function handler.</param>
         /// <returns>An IMongoDatabase.</returns>
-        public static IMongoDatabase GetDatabase(this DatabaseFunctionHandler functionHandler)
+        public static IMongoDatabase GetDatabase(this FunctionHandler functionHandler)
         {
             return Database;
         }
@@ -59,7 +59,7 @@ namespace Function
         /// </summary>
         /// <param name="functionHandler">This instance of a function handler.</param>
         /// <returns>An IMongoCollection<BsonDocument>.</returns>
-        public static IMongoCollection<BsonDocument> GetCollection(this DatabaseFunctionHandler functionHandler)
+        public static IMongoCollection<BsonDocument> GetCollection(this FunctionHandler functionHandler)
         {
             return Collection;
         }
