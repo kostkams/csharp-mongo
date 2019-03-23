@@ -1,24 +1,15 @@
-FROM alpine:3.8 as watchdog
+# Credit to Scott Hansleman: https://www.hanselman.com/blog/HowToBuildAKubernetesClusterWithARMRaspberryPiThenRunNETCoreOnOpenFaas.aspx
+FROM microsoft/dotnet:2.0-sdk as builder
 
-RUN apk --no-cache add curl \
-    && echo "Pulling watchdog binary from Github." \
-    && curl -sSL https://github.com/openfaas/faas/releases/download/0.9.14/fwatchdog > /usr/bin/fwatchdog \
-    && chmod +x /usr/bin/fwatchdog \
-    && cp /usr/bin/fwatchdog /home/app \
-    && apk del curl --no-cache
-
-FROM microsoft/dotnet:2.1-sdk as builder
-
-# Supress collection of data.
 ENV DOTNET_CLI_TELEMETRY_OPTOUT 1
 
 # Optimize for Docker builder caching by adding projects first.
 
-RUN mkdir -p /home/app/src/function
-WORKDIR /home/app/src/function
+RUN mkdir -p /root/src/function
+WORKDIR /root/src/function
 COPY ./function/Function.csproj  .
 
-WORKDIR /home/app/src/
+WORKDIR /root/src/
 COPY ./root.csproj  .
 RUN dotnet restore ./root.csproj
 
@@ -26,26 +17,29 @@ COPY .  .
 
 RUN dotnet publish -c release -o published
 
-FROM microsoft/dotnet:2.1-runtime
+FROM microsoft/dotnet:2.0-runtime
 
-COPY --from=watchdog /usr/bin/fwatchdog  /usr/bin/
+# Influenced by https://github.com/burtonr/csharp-kestrel-template
+RUN apt-get update -qy \
+    && apt-get install -qy curl ca-certificates --no-install-recommends \ 
+    && echo "Pulling watchdog binary from Github." \
+    && curl -sSLf https://github.com/openfaas-incubator/of-watchdog/releases/download/0.4.0/of-watchdog > /usr/bin/fwatchdog \
+    && chmod +x /usr/bin/fwatchdog \
+    && apt-get -qy remove curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
-RUN addgroup --system app \
-    && adduser --system --ingroup app app
-
-WORKDIR /home/app/
-COPY --from=builder /home/app/src/published .
-RUN chown app:app -R /home/app
-
-USER app
+WORKDIR /root/
+COPY --from=builder /root/src/published .
 
 ENV fprocess="dotnet ./root.dll"
 ENV cgi_headers="true"
 ENV mode="http"
 ENV upstream_url="http://localhost:5000"
+ENV exec_timeout="10s"
+ENV write_timeout="15s"
+ENV read_timeout="15s"
 
-EXPOSE 8080
 
 HEALTHCHECK --interval=3s CMD [ -e /tmp/.lock ] || exit 1
 
